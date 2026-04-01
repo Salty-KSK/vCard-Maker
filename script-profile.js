@@ -14,13 +14,24 @@ document.addEventListener('DOMContentLoaded', () => {
             base64 += '='.repeat(padLengths[base64.length % 4] || 0);
 
             // Decode from UTF-8 Safe Base64
-            const jsonStr = decodeURIComponent(escape(atob(base64)));
-            const obj = JSON.parse(jsonStr);
+            const decodedStr = decodeURIComponent(escape(atob(base64)));
             
-            name = obj.n || '';
-            company = obj.c || '';
-            tel = obj.t || '';
-            email = obj.e || '';
+            if (decodedStr.startsWith('{')) {
+                // Fallback for older JSON-based links
+                const obj = JSON.parse(decodedStr);
+                
+                name = obj.n || '';
+                company = obj.c || '';
+                tel = obj.t || '';
+                email = obj.e || '';
+            } else {
+                // Parse new tab-delimited format: name | tel | company | email
+                const parts = decodedStr.split('\t');
+                name = parts[0] || '';
+                tel = parts[1] || '';
+                company = parts[2] || '';
+                email = parts[3] || '';
+            }
         } catch (e) {
             console.error('Failed to parse profile data:', e);
         }

@@ -29,29 +29,83 @@ document.addEventListener('DOMContentLoaded', () => {
             baseUrl += '/profile.html';
         }
 
-        // Build a shorter data payload using Base64 encoding
-        const dataObj = { n: name, t: tel };
-        if (company) dataObj.c = company;
-        if (email) dataObj.e = email;
-
-        // Convert obj to JSON and safely encode to Base64 (supporting UTF-8)
-        const jsonStr = JSON.stringify(dataObj);
+        // Build the shortest possible data payload using tab-delimited string
+        const clean = (str) => str.replace(/\t/g, ' '); // Prevent delimiter conflict
+        const parts = [clean(name), clean(tel), clean(company), clean(email)];
+        
+        // Remove trailing empty fields to save space
+        while (parts.length > 0 && parts[parts.length - 1] === '') {
+            parts.pop();
+        }
+        
+        const payloadStr = parts.join('\t');
+        
         // UTF-8 to safe Base64
-        const base64 = btoa(unescape(encodeURIComponent(jsonStr)));
+        const base64 = btoa(unescape(encodeURIComponent(payloadStr)));
         // Make URL-safe (Base64url format)
         const safeBase64 = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         
         const fullUrl = `${baseUrl}?d=${safeBase64}`;
 
-        // Display results
-        generatedUrlInput.value = fullUrl;
+        // Show loading state
+        generatedUrlInput.value = "短縮URLを生成中...";
         previewLink.href = fullUrl;
+        copyBtn.disabled = true;
+        copyBtn.style.opacity = '0.5';
         
         resultSection.classList.remove('hidden');
         copyMsg.classList.add('hidden'); // Reset message state
         
         // Scroll to result smoothly
         resultSection.scrollIntoView({ behavior: 'smooth' });
+
+        // Warning for local environment
+        const isLocal = window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        let localWarning = document.getElementById('local-warning');
+        if (isLocal) {
+            if (!localWarning) {
+                localWarning = document.createElement('div');
+                localWarning.id = 'local-warning';
+                localWarning.className = 'error-state';
+                localWarning.style.marginTop = '15px';
+                localWarning.style.padding = '10px';
+                localWarning.style.fontSize = '0.85rem';
+                localWarning.innerHTML = '⚠️ <strong>注意:</strong> 現在パソコンのローカル環境から実行されています。この状態で生成された短縮URLは、あなたのPCでしか見られません。スマホ等の他の端末から確認する場合は、必ずCloudflare Pages（本番環境）にデプロイした上でURLを生成してください。';
+                resultSection.appendChild(localWarning);
+            }
+        } else {
+            if (localWarning) localWarning.remove();
+        }
+
+        // Generate short URL using JSONP (is.gd API)
+        const script = document.createElement('script');
+        const callbackName = 'jsonp_callback_' + Math.round(100000 * Math.random());
+        
+        window[callbackName] = function(data) {
+            delete window[callbackName];
+            if (document.body.contains(script)) document.body.removeChild(script);
+            
+            // If successful, show short URL. Else, show the long one
+            if (data && data.shorturl) {
+                generatedUrlInput.value = data.shorturl;
+                previewLink.href = data.shorturl;
+            } else {
+                generatedUrlInput.value = fullUrl;
+            }
+            copyBtn.disabled = false;
+            copyBtn.style.opacity = '1';
+        };
+        
+        script.onerror = function() {
+            delete window[callbackName];
+            if (document.body.contains(script)) document.body.removeChild(script);
+            generatedUrlInput.value = fullUrl;
+            copyBtn.disabled = false;
+            copyBtn.style.opacity = '1';
+        };
+        
+        script.src = `https://is.gd/create.php?format=json&url=${encodeURIComponent(fullUrl)}&callback=${callbackName}`;
+        document.body.appendChild(script);
     });
 
     copyBtn.addEventListener('click', () => {
