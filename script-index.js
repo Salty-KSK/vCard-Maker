@@ -70,9 +70,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 localWarning.style.marginTop = '15px';
                 localWarning.style.padding = '10px';
                 localWarning.style.fontSize = '0.85rem';
-                localWarning.innerHTML = '⚠️ <strong>注意:</strong> 現在パソコンのローカル環境から実行されています。この状態で生成された短縮URLは、あなたのPCでしか見られません。スマホ等の他の端末から確認する場合は、必ずCloudflare Pages（本番環境）にデプロイした上でURLを生成してください。';
+                localWarning.innerHTML = '⚠️ <strong>注意:</strong> 現在パソコンのローカル環境から実行されています。デプロイするまで短縮URLは生成されません。下のURLはスマホ等からは<strong>絶対に開けません</strong>。インターネット本番環境にデプロイしてから再生成してください。';
                 resultSection.appendChild(localWarning);
             }
+            
+            generatedUrlInput.value = fullUrl;
+            copyBtn.disabled = false;
+            copyBtn.style.opacity = '1';
+            return;
         } else {
             if (localWarning) localWarning.remove();
         }
