@@ -82,35 +82,38 @@ document.addEventListener('DOMContentLoaded', () => {
             if (localWarning) localWarning.remove();
         }
 
-        // Generate short URL using JSONP (is.gd API)
-        const script = document.createElement('script');
-        const callbackName = 'jsonp_callback_' + Math.round(100000 * Math.random());
-        
-        window[callbackName] = function(data) {
-            delete window[callbackName];
-            if (document.body.contains(script)) document.body.removeChild(script);
-            
-            // If successful, show short URL. Else, show the long one
-            if (data && data.shorturl) {
-                generatedUrlInput.value = data.shorturl;
-                previewLink.href = data.shorturl;
-            } else {
-                generatedUrlInput.value = fullUrl;
-            }
-            copyBtn.disabled = false;
-            copyBtn.style.opacity = '1';
-        };
-        
-        script.onerror = function() {
-            delete window[callbackName];
-            if (document.body.contains(script)) document.body.removeChild(script);
+        // Generate short URL using fetch (is.gd API) with timeout
+        const showFullUrl = () => {
             generatedUrlInput.value = fullUrl;
             copyBtn.disabled = false;
             copyBtn.style.opacity = '1';
         };
-        
-        script.src = `https://is.gd/create.php?format=json&url=${encodeURIComponent(fullUrl)}&callback=${callbackName}`;
-        document.body.appendChild(script);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒タイムアウト
+
+        fetch(`https://is.gd/create.php?format=json&url=${encodeURIComponent(fullUrl)}`, {
+            signal: controller.signal
+        })
+        .then(response => {
+            clearTimeout(timeoutId);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            if (data && data.shorturl) {
+                generatedUrlInput.value = data.shorturl;
+                previewLink.href = data.shorturl;
+            } else {
+                showFullUrl();
+            }
+            copyBtn.disabled = false;
+            copyBtn.style.opacity = '1';
+        })
+        .catch(() => {
+            clearTimeout(timeoutId);
+            showFullUrl();
+        });
     });
 
     copyBtn.addEventListener('click', () => {
