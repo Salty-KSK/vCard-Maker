@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (localWarning) localWarning.remove();
         }
 
-        // Generate short URL using fetch (is.gd API) with timeout
+        // Generate short URL using our own API proxy (bypasses CORS)
         const showFullUrl = () => {
             generatedUrlInput.value = fullUrl;
             copyBtn.disabled = false;
@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒タイムアウト
 
-        fetch(`https://is.gd/create.php?format=json&url=${encodeURIComponent(fullUrl)}`, {
+        fetch(`/api/shorten?url=${encodeURIComponent(fullUrl)}`, {
             signal: controller.signal
         })
         .then(response => {
